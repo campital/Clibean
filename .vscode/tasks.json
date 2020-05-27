@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "g++ build all c++ files",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-Wall",
+                "-g",
+                "${workspaceFolder}/**.cpp",
+                "-o",
+                "${workspaceFolder}/clibean",
+                //"-lssl"
+            ],
+            "options": {
+                "cwd": "/usr/bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
