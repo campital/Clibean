@@ -1,5 +1,5 @@
 clibean: http.o main.o
-	c++ http.o main.o -o clibean
+	c++ http.o main.o -o clibean -lssl -lcrypto
 
 http.o: http.cpp http.h
 	c++ -c http.cpp

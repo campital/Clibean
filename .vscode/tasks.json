@@ -11,7 +11,8 @@
                 "${workspaceFolder}/**.cpp",
                 "-o",
                 "${workspaceFolder}/clibean",
-                //"-lssl"
+                "-lssl",
+                "-lcrypto"
             ],
             "options": {
                 "cwd": "/usr/bin"
