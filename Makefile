@@ -1,11 +1,13 @@
-clibean: http.o main.o
-	c++ http.o main.o -o clibean -lssl -lcrypto
+SRC := $(wildcard *.cpp)
+OBJ := $(SRC:.cpp=.o)
+CXXFLAGS := -Os
+LDLIBS := -lssl -lcrypto
 
-http.o: http.cpp http.h
-	c++ -c http.cpp
+clibean: $(OBJ)
+	$(CXX) $(LDLIBS) -o clibean $(OBJ)
 
-main.o: main.cpp
-	c++ -c main.cpp
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	rm *.o clibean
+	rm clibean *.o
