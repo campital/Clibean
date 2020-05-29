@@ -12,7 +12,9 @@
                 "-o",
                 "${workspaceFolder}/clibean",
                 "-lssl",
-                "-lcrypto"
+                "-lcrypto",
+                "-fsanitize=address",
+                "-g"
             ],
             "options": {
                 "cwd": "/usr/bin"
