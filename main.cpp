@@ -1,3 +1,7 @@
+/*
+TODO: Move net utils (creating sockets etc.) to netUtil.cpp
+*/
+
 #include "http.h"
 #include <cstring>
 #include <openssl/err.h>
@@ -95,7 +99,7 @@ int main(int argc, char **argv)
             return 0;
             break;
         case 'h':
-            std::cerr << "Usage: " << argv[0] << " [options]\nClibean is a desktop client for Membean (https://membean.com)\n\n"
+            std::cerr << "Usage: " << argv[0] << " [options]\nClibean is a desktop client for Membean (https://membean.com)\n\nOptions:\n"
             << "  -h, --help      Display this help menu\n"
             << "  -g, --gui       Run Clibean in GUI mode\n"
             << "  -s, --simple    Run Clibean in simple terminal mode (default)\n"
@@ -118,6 +122,12 @@ int main(int argc, char **argv)
     }
 
     socket_pair mbConnection = sslConnect("membean.com");
+
+    HTTPRequest loginRequest("membean.com", "/login", true, true);
+    // get the XSRF token
+    loginRequest.headerParams.insert(std::map<std::string, std::string>::value_type("X-Only-Token", "1"));
+    loginRequest.connect(mbConnection);
+
     closeSocket(mbConnection);
     return 0;
 }
