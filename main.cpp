@@ -117,6 +117,7 @@ int main(int argc, char **argv)
             break;
         default:
             std::cerr << argv[0] << ": Invalid usage!\n" << argErrorString;
+            std::cout << option << std::endl;
             return 0;
             break;
     }

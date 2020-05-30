@@ -7,9 +7,11 @@ std::string toHex(unsigned int i)
 {
     unsigned int place = 1;
     std::string res;
-    while(i != 0) {
+    int count = 0;
+    while(i != 0 || count < 2) {
         res.insert(res.begin(), hexTable[i % 16]);
         i /= (place *= 16);
+        count++;
     }
     return res;
 }
