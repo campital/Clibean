@@ -6,7 +6,9 @@
 - Feel free to contribute or ask questions!
 
 ### Build and run instructions (Linux)
-1. Clone the repository: `git clone https://github.com/campital/Clibean.git`
-2. Install the prerequisites: `sudo apt install make libssl-dev`
+1. Install the prerequisites:
+ - Ubuntu: `sudo apt install build-essential libssl-dev git`
+ - Arch: `sudo pacman -S base-devel openssl git`
+2. Clone the repository: `git clone https://github.com/campital/Clibean.git`
 3. Run `make` inside the source directory
 4. Run `./clibean` to start a training session!

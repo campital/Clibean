@@ -4,9 +4,12 @@ CXXFLAGS := -Os
 LDLIBS := -lssl -lcrypto
 
 clibean: $(OBJ)
-	$(CXX) $(LDLIBS) -o clibean $(OBJ)
+	$(CXX) -o clibean $(OBJ) $(LDLIBS)
 
-%.o: %.cpp
+main.o: main.cpp http.h
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+http.o: http.cpp http.h
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:

@@ -95,7 +95,7 @@ int main(int argc, char **argv)
             return 0;
             break;
         case 'h':
-            std::cerr << "Usage: " << argv[0] << " [options]\nClibean is a desktop client for Membean (https://membean.com/)\n\n" 
+            std::cerr << "Usage: " << argv[0] << " [options]\nClibean is a desktop client for Membean (https://membean.com)\n\n"
             << "  -h, --help      Display this help menu\n"
             << "  -g, --gui       Run Clibean in GUI mode\n"
             << "  -s, --simple    Run Clibean in simple terminal mode (default)\n"
