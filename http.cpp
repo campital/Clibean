@@ -47,6 +47,8 @@ HTTPRequest::HTTPRequest(const HTTPRequest& other)
     headerParams = other.headerParams;
 }
 
+// note that headerParams WILL BE modified, but can be requested again
+// on networking failure, returns an empty http_response (should reconnect)
 http_response HTTPRequest::connect(socket_pair sock)
 {
     std::string headers;
@@ -69,8 +71,8 @@ http_response HTTPRequest::connect(socket_pair sock)
     // TODO: add language support??
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Language", "en-US,en;q=0.5"));
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Encoding", "identity"));
-    // we will probably reuse this socket later
-    headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "keep-alive"));
+    // server just times out anyways
+    headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "close"));
     auto headerIt = headerParams.begin();
     while(headerIt != headerParams.end()) {
         headers.append(headerIt->first + ": " + headerIt->second + "\r\n");
@@ -83,15 +85,19 @@ http_response HTTPRequest::connect(socket_pair sock)
     if(!m_isGet && requestBody.size() > 0) {
         body.reserve(256);
         while(bodyIt != requestBody.end()) {
-            body.append("\r\n" + urlEncodeParam(bodyIt->first) + "=" + urlEncodeParam(bodyIt->second) + "&");
+            body.append(urlEncodeParam(bodyIt->first) + "=" + urlEncodeParam(bodyIt->second) + "&");
             bodyIt++;
         }
         body.resize(body.size() - 1);
         body.append("\r\n\r\n");
         headers.append("Content-Type: application/x-www-form-urlencoded\r\n");
-        headers.append("Content-Length: " + std::to_string(body.size() - 6) + "\r\n");
+        headers.append("Content-Length: " + std::to_string(body.size() - 4) + "\r\n");
     }
-    
-    std::cout << headers << body;
+    headers.append("\r\n");
+    std::string rawResult = writeDataSSL(sock.sockSSL, headers + body);
+    if(rawResult == "") {
+        return {};
+    }
+    std::cout << rawResult;
     return {};
 }

@@ -1,17 +1,9 @@
 #pragma once
 #include <iostream>
 #include <map>
-#include <sys/socket.h>
-#include <openssl/ssl.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include "netUtil.h"
 
 std::string urlEncodeParam(std::string str);
-
-struct socket_pair {
-    int basicSock;
-    SSL *sockSSL;
-};
 
 struct http_response {
     bool connected;
