@@ -6,9 +6,10 @@
 std::string urlEncodeParam(std::string str);
 
 struct http_response {
-    bool connected;
+    bool success;
     std::string body;
     std::map<std::string, std::string> headerParams;
+    std::map<std::string, std::string> setCookies;
     int successCode;
 };
 

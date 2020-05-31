@@ -55,7 +55,9 @@ int main(int argc, char **argv)
     HTTPRequest loginRequest("membean.com", "/login", true, true);
     // get the XSRF token
     loginRequest.headerParams.insert(std::map<std::string, std::string>::value_type("X-Only-Token", "1"));
-    loginRequest.connect(mbConnection);
+    //loginRequest.headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "keep-alive"));
+    http_response csrfTokenResponse = loginRequest.connect(mbConnection);
+    std::cout << csrfTokenResponse.setCookies["_new_membean_session_id"] << std::endl;
 
     closeSocket(mbConnection);
     return 0;

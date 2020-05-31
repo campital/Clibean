@@ -48,7 +48,7 @@ HTTPRequest::HTTPRequest(const HTTPRequest& other)
 }
 
 // note that headerParams WILL BE modified, but can be requested again
-// on networking failure, returns an empty http_response (should reconnect)
+// on networking failure, returns a failed http_response (should reconnect)
 http_response HTTPRequest::connect(socket_pair sock)
 {
     std::string headers;
@@ -94,10 +94,55 @@ http_response HTTPRequest::connect(socket_pair sock)
         headers.append("Content-Length: " + std::to_string(body.size() - 4) + "\r\n");
     }
     headers.append("\r\n");
+    // send the request
     std::string rawResult = writeDataSSL(sock.sockSSL, headers + body);
+    http_response result;
+    result.success = false;
     if(rawResult == "") {
-        return {};
+        return result;
     }
-    std::cout << rawResult;
-    return {};
+
+    // get the http status code
+    size_t endCode = rawResult.find(' ', 9);
+    if(endCode == std::string::npos) {
+        return result;
+    }
+    result.successCode = std::stoi(rawResult.substr(9, endCode - 9));
+
+    size_t linePos = rawResult.find("\r\n") + 2;
+    size_t linePosTmp = 0;
+    // parse the headers
+    while(linePos != std::string::npos) {
+        if(linePos >= rawResult.size() || rawResult[linePos] == '\r') {
+            break;
+        }
+        size_t colon = rawResult.find(':', linePos);
+        if(colon == std::string::npos) {
+            break;
+        }
+        linePosTmp = rawResult.find("\r\n", linePos);
+        std::string key = rawResult.substr(linePos, colon - linePos);
+        // lowercase it
+        for(char &c : key) { c = std::tolower(c); }
+        std::string val = rawResult.substr(colon + 2, linePosTmp - (colon + 2));
+        if(key != "set-cookie") {
+            result.headerParams.insert(std::map<std::string, std::string>::value_type(key, val));
+        } else {
+            size_t separateCookie = val.find("=");
+            size_t endCookie = val.find(";");
+            if(separateCookie == std::string::npos || endCode == std::string::npos) {
+                break;
+            }
+            result.setCookies.insert(std::map<std::string, std::string>::value_type(val.substr(0, separateCookie),
+                val.substr(separateCookie + 1, endCookie - (separateCookie + 1))));
+        }
+        linePos = linePosTmp + 2;
+    }
+
+    // set the body
+    if(rawResult[linePos] == '\r' && linePos + 2 < rawResult.size()) {
+        result.body = rawResult.substr(linePos + 2);
+    }
+    result.success = true;
+    return result;
 }

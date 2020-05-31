@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <iostream>
 
-const int bufSize = 1024;
+const int bufSize = 2048;
 
 void closeSocket(socket_pair pair)
 {
@@ -58,6 +58,14 @@ socket_pair sslConnect(std::string hostName)
         std::cerr << "Could not get host info: " << hostName << '\n';
         return pair;
     }
+
+    // set timeouts
+    timeval tOut;
+    tOut.tv_sec = 5;
+    tOut.tv_usec = 0;
+    setsockopt(base, SOL_SOCKET, SO_RCVTIMEO, &tOut, sizeof(tOut));
+    setsockopt(base, SOL_SOCKET, SO_SNDTIMEO, &tOut, sizeof(tOut));
+
     // connect to the server
     if(connect(base, result->ai_addr, result->ai_addrlen) != 0) {
         std::cerr << "Could not connect to server! Error: " << std::strerror(errno) << '\n';
