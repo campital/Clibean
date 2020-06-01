@@ -1,17 +1,8 @@
 #pragma once
 #include <iostream>
-#include <map>
 #include "netUtil.h"
 
 std::string urlEncodeParam(std::string str);
-
-struct http_response {
-    bool success;
-    std::string body;
-    std::map<std::string, std::string> headerParams;
-    std::map<std::string, std::string> setCookies;
-    int successCode;
-};
 
 class HTTPRequest {
     private:

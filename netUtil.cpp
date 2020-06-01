@@ -3,8 +3,10 @@
 #include <openssl/err.h>
 #include <unistd.h>
 #include <iostream>
+#include <memory>
 
 const int bufSize = 2048;
+const std::string validHex = "0123456789abcdefABCDEF";
 
 void closeSocket(socket_pair pair)
 {
@@ -79,8 +81,148 @@ socket_pair sslConnect(std::string hostName)
     return pair;
 }
 
+// remove the chunkiness from Transfer-Encoding: chunked
+// throws an exception if something is invalid
+// returns true if it reaches the end
+bool HTTPStreamReader::unChunk(const std::string& chunked)
+{
+    std::string result;
+    m_chunkedData.append(chunked);
+
+    while(m_chunkSearch < m_chunkedData.size()) {
+        size_t endSection = m_chunkedData.find("\r\n", m_chunkSearch);
+        if(endSection == std::string::npos) {
+            m_Response.body += result;
+            return false;
+        }
+
+        std::string hexReadLen = m_chunkedData.substr(m_chunkSearch, endSection - m_chunkSearch);
+        for(char c : hexReadLen) {
+            if(validHex.find(c) == std::string::npos) throw std::invalid_argument("Invalid chunked data!");
+        }
+        size_t readLen = std::stoul(hexReadLen, nullptr, 16);
+        if(readLen == 0) {
+            m_Response.body += result;
+            return true;
+        }
+        if(endSection + readLen + 4 >= m_chunkedData.size()) {
+            m_Response.body += result;
+            return false;
+        } else {
+            m_chunkSearch = endSection + 2;
+            result += m_chunkedData.substr(m_chunkSearch, readLen);
+        }
+        m_chunkSearch += readLen + 2;
+    }
+    m_Response.body += result;
+    return false;
+}
+
+bool HTTPStreamReader::append(std::string val)
+{
+    m_currHeaders += val;
+    if(m_headerReadPos == 0) {
+        size_t endLine = m_currHeaders.find("\r\n");
+        if(endLine == std::string::npos) {
+            return false;
+        }
+
+        size_t endCode = m_currHeaders.rfind(" ", endLine);
+        size_t startCode = m_currHeaders.find("HTTP/1.1");
+        if(endCode != std::string::npos && startCode != std::string::npos) {
+            m_Response.successCode = std::stoul(m_currHeaders.substr(startCode + 9, endCode - (startCode + 9)));
+        }
+        m_headerReadPos = endLine + 2;
+    }
+    if(m_inHeaders) {
+        while(true) {
+            size_t endLine = m_currHeaders.find("\r\n", m_headerReadPos);
+            if(endLine == std::string::npos) {
+                return false;
+            }
+            std::string currLine = m_currHeaders.substr(m_headerReadPos, endLine - m_headerReadPos);
+            // check if the headers are over
+            if(currLine == "") {
+                m_inHeaders = false;
+                m_firstBody = true;
+                std::map<std::string, std::string>::const_iterator it;
+                if((it = m_Response.headerParams.find("transfer-encoding")) != m_Response.headerParams.end()) {
+                    if(it->second == "chunked") {
+                        m_Chunked = true;
+                    }
+                } else if((it = m_Response.headerParams.find("content-length")) == m_Response.headerParams.end()) {
+                    return true;
+                } else {
+                    m_contentLength = std::stoul(m_Response.headerParams["content-length"]);
+                }
+                m_headerReadPos += 2;
+                break;
+            } else {
+                size_t colon = m_currHeaders.find(':', m_headerReadPos);
+                if(colon == std::string::npos) {
+                    return false;
+                }
+                size_t endLine = m_currHeaders.find("\r\n", m_headerReadPos);
+                if(endLine == std::string::npos) {
+                    return false;
+                }
+                std::string key = m_currHeaders.substr(m_headerReadPos, colon - m_headerReadPos);
+                // lowercase it
+                for(char &c : key) { c = std::tolower(c); }
+
+                // insert the headers into the std::map(s)
+                std::string val = m_currHeaders.substr(colon + 2, endLine - (colon + 2));
+                if(key != "set-cookie") {
+                    m_Response.headerParams.insert(std::map<std::string, std::string>::value_type(key, val));
+                } else {
+                    size_t separateCookie = val.find("=");
+                    size_t endCookie = val.find(";");
+                    if(separateCookie == std::string::npos || endCookie == std::string::npos) {
+                        return false;
+                    }
+                    m_Response.setCookies.insert(std::map<std::string, std::string>::value_type(val.substr(0, separateCookie),
+                        val.substr(separateCookie + 1, endCookie - (separateCookie + 1))));
+                }
+                m_headerReadPos = endLine + 2;
+            }
+        }
+    }
+    // it could have changed
+    if(!m_inHeaders) {
+        // extract the body
+        if(m_firstBody) {
+            m_firstBody = false;
+            if(m_headerReadPos < m_currHeaders.size()) {
+                val = m_currHeaders.substr(m_headerReadPos);
+            } else {
+                return false;
+            }
+        }
+        // the data is chunked
+        if(m_Chunked) {
+            if(unChunk(val)) {
+                return true;
+            }
+        } else {
+            m_contentRead += val.size();
+            m_Response.body.append(val);
+            if(m_contentRead >= m_contentLength) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+http_response HTTPStreamReader::getResponse()
+{
+    return m_Response;
+}
+
+
 // returns the response (blank if timed out or network error)
-std::string writeDataSSL(SSL* ssl, std::string data)
+// http=true will look for a transfer-encoding or content-length and know when to stop
+http_response writeDataSSL(SSL* ssl, std::string data)
 {
     int retry = 0;
     while(retry < 4) {
@@ -88,21 +230,26 @@ std::string writeDataSSL(SSL* ssl, std::string data)
         if(err > 0) {
             break;
         } else if(SSL_get_error(ssl, err) != SSL_ERROR_WANT_WRITE) {
-            return "";
+            return {};
         }
         retry++;
     }
-    char* buf = new char[bufSize];
+
+    auto buf = std::unique_ptr<char[]>(new char[bufSize]);
     int readSize = 0;
-    std::string bufString;
-    retry = 0;
+    HTTPStreamReader parser;
     do {
-        readSize = SSL_read(ssl, buf, bufSize - 1);
-        if(readSize > 0 && readSize < bufSize) {
+        readSize = SSL_read(ssl, buf.get(), bufSize - 1);
+        if(readSize > 0) {
             buf[readSize] = 0;
-            bufString += std::string(buf);
+            std::string currBuf(buf.get());
+            if(parser.append(currBuf)) {
+                http_response res = parser.getResponse();
+                res.success = true;
+                return res;
+            }
         }
     } while(readSize > 0);
-    delete [] buf;
-    return bufString;
+    http_response res = parser.getResponse();
+    return res;
 }

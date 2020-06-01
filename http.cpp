@@ -67,7 +67,8 @@ http_response HTTPRequest::connect(socket_pair sock)
     headers.append(m_isGet ? "GET" : "POST").append(" " + m_Location + getParams).append(" HTTP/1.1\r\n");
     headerParams.insert(std::map<std::string, std::string>::value_type("Host", m_Host));
     // just copied User-Agent from my browser (could be anything but don't want to trigger suspicion)
-    headerParams.insert(std::map<std::string, std::string>::value_type("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0"));
+    headerParams.insert(std::map<std::string, std::string>::value_type("User-Agent",
+        "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0"));
     // TODO: add language support??
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Language", "en-US,en;q=0.5"));
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Encoding", "identity"));
@@ -94,55 +95,22 @@ http_response HTTPRequest::connect(socket_pair sock)
         headers.append("Content-Length: " + std::to_string(body.size() - 4) + "\r\n");
     }
     headers.append("\r\n");
-    // send the request
-    std::string rawResult = writeDataSSL(sock.sockSSL, headers + body);
-    http_response result;
-    result.success = false;
-    if(rawResult == "") {
-        return result;
-    }
-
-    // get the http status code
-    size_t endCode = rawResult.find(' ', 9);
-    if(endCode == std::string::npos) {
-        return result;
-    }
-    result.successCode = std::stoi(rawResult.substr(9, endCode - 9));
-
-    size_t linePos = rawResult.find("\r\n") + 2;
-    size_t linePosTmp = 0;
-    // parse the headers
-    while(linePos != std::string::npos) {
-        if(linePos >= rawResult.size() || rawResult[linePos] == '\r') {
-            break;
-        }
-        size_t colon = rawResult.find(':', linePos);
-        if(colon == std::string::npos) {
-            break;
-        }
-        linePosTmp = rawResult.find("\r\n", linePos);
-        std::string key = rawResult.substr(linePos, colon - linePos);
-        // lowercase it
-        for(char &c : key) { c = std::tolower(c); }
-        std::string val = rawResult.substr(colon + 2, linePosTmp - (colon + 2));
-        if(key != "set-cookie") {
-            result.headerParams.insert(std::map<std::string, std::string>::value_type(key, val));
-        } else {
-            size_t separateCookie = val.find("=");
-            size_t endCookie = val.find(";");
-            if(separateCookie == std::string::npos || endCode == std::string::npos) {
-                break;
+    http_response finalRes;
+    // send the request (retry 4 times)
+    for(int i = 0; i < 4; i++) {
+        bool retry = false;
+        try {
+            finalRes = writeDataSSL(sock.sockSSL, headers + body);
+            if(!finalRes.success) {
+                throw std::invalid_argument("Error parsing data sent from server!");
             }
-            result.setCookies.insert(std::map<std::string, std::string>::value_type(val.substr(0, separateCookie),
-                val.substr(separateCookie + 1, endCookie - (separateCookie + 1))));
+        } catch(const std::invalid_argument& t) {
+            std::cerr << t.what() << '\n';
+            retry = true;
         }
-        linePos = linePosTmp + 2;
+        if(!retry) {
+            break;
+        }
     }
-
-    // set the body
-    if(rawResult[linePos] == '\r' && linePos + 2 < rawResult.size()) {
-        result.body = rawResult.substr(linePos + 2);
-    }
-    result.success = true;
-    return result;
+    return finalRes;
 }
