@@ -34,14 +34,13 @@ std::string urlEncodeParam(std::string str)
 
 // host is the hostname (ie "www.google.com" or "google.com")
 // location is the information after the host (ie "/search" for a GET request)
-HTTPRequest::HTTPRequest(std::string host, std::string location, bool isGet, bool ssl) :
-    m_Host(host), m_Location(location), m_isGet(isGet), m_ssl(ssl) {}
+HTTPRequest::HTTPRequest(std::string host, std::string location, bool isGet) :
+    m_Host(host), m_Location(location), m_isGet(isGet) {}
 
 HTTPRequest::HTTPRequest(const HTTPRequest& other)
 {
     m_Host = other.m_Host;
     m_Location = other.m_Location;
-    m_ssl = other.m_ssl;
     m_isGet= other.m_isGet;
     requestBody = other.requestBody;
     headerParams = other.headerParams;
@@ -73,7 +72,7 @@ http_response HTTPRequest::connect(socket_pair sock)
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Language", "en-US,en;q=0.5"));
     headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Encoding", "identity"));
     // server just times out anyways
-    headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "close"));
+    headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "keep-alive"));
     auto headerIt = headerParams.begin();
     while(headerIt != headerParams.end()) {
         headers.append(headerIt->first + ": " + headerIt->second + "\r\n");
@@ -96,13 +95,23 @@ http_response HTTPRequest::connect(socket_pair sock)
     }
     headers.append("\r\n");
     http_response finalRes;
-    // send the request (retry 4 times)
-    for(int i = 0; i < 4; i++) {
+    socket_pair newSock;
+    newSock.sockSSL = nullptr;
+    // send the request (try 3 times)
+    for(int i = 0; i < 3; i++) {
         bool retry = false;
         try {
             finalRes = writeDataSSL(sock.sockSSL, headers + body);
             if(!finalRes.success) {
-                throw std::invalid_argument("Error parsing data sent from server!");
+                if(finalRes.sslError == SSL_ERROR_WANT_CONNECT || finalRes.sslError == SSL_ERROR_SSL
+                    || finalRes.sslError == SSL_ERROR_SYSCALL || finalRes.sslError == SSL_ERROR_ZERO_RETURN) {
+                        
+                    // reconnect
+                    closeSocket(sock);
+                    sock = sslConnect(m_Host);
+                    newSock = sock;
+                }
+                retry = true;
             }
         } catch(const std::invalid_argument& t) {
             std::cerr << t.what() << '\n';
@@ -112,5 +121,6 @@ http_response HTTPRequest::connect(socket_pair sock)
             break;
         }
     }
+    finalRes.newSock = newSock;
     return finalRes;
 }

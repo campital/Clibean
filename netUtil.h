@@ -18,6 +18,8 @@ struct http_response {
     std::map<std::string, std::string> headerParams;
     std::map<std::string, std::string> setCookies;
     int successCode;
+    int sslError = 0;
+    socket_pair newSock;
 };
 
 class HTTPStreamReader {

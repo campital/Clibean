@@ -9,12 +9,12 @@
                 "-Wall",
                 "-g",
                 "${workspaceFolder}/**.cpp",
+                "${workspaceFolder}/ui/**.cpp",
                 "-o",
                 "${workspaceFolder}/clibean",
                 "-lssl",
                 "-lcrypto",
-                "-fsanitize=address",
-                "-g"
+                "-fsanitize=address"
             ],
             "options": {
                 "cwd": "/usr/bin"

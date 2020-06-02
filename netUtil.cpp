@@ -158,13 +158,17 @@ bool HTTPStreamReader::append(std::string val)
                 m_headerReadPos += 2;
                 break;
             } else {
+                // parse the current line for headers
+                size_t endLine = m_currHeaders.find("\r\n", m_headerReadPos);
+                if(endLine == std::string::npos) {
+                    return false;
+                }
                 size_t colon = m_currHeaders.find(':', m_headerReadPos);
                 if(colon == std::string::npos) {
                     return false;
                 }
-                size_t endLine = m_currHeaders.find("\r\n", m_headerReadPos);
-                if(endLine == std::string::npos) {
-                    return false;
+                if(colon > endLine) {
+                    throw std::invalid_argument("Invalid headers!");
                 }
                 std::string key = m_currHeaders.substr(m_headerReadPos, colon - m_headerReadPos);
                 // lowercase it
@@ -220,8 +224,8 @@ http_response HTTPStreamReader::getResponse()
 }
 
 
-// returns the response (blank if timed out or network error)
-// http=true will look for a transfer-encoding or content-length and know when to stop
+// returns the response (success in the struct will be set appropriately)
+// parses data as it receives
 http_response writeDataSSL(SSL* ssl, std::string data)
 {
     int retry = 0;
@@ -229,8 +233,10 @@ http_response writeDataSSL(SSL* ssl, std::string data)
         int err = SSL_write(ssl, data.c_str(), data.size());
         if(err > 0) {
             break;
-        } else if(SSL_get_error(ssl, err) != SSL_ERROR_WANT_WRITE) {
-            return {};
+        } else if((err = SSL_get_error(ssl, err)) != SSL_ERROR_WANT_WRITE) {
+            http_response sslErr;
+            sslErr.sslError = err;
+            return sslErr;
         }
         retry++;
     }

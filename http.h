@@ -15,7 +15,7 @@ class HTTPRequest {
         // the headerParams should only contain general headers, such as "cookie"
         // the HTTPRequest handles the "Host", "User-Agent", encoding, content-length, content-type, etc.
         std::map<std::string, std::string> headerParams;
-        HTTPRequest(std::string host, std::string location, bool isGet, bool ssl);
+        HTTPRequest(std::string host, std::string location, bool isGet);
         HTTPRequest(const HTTPRequest& other);
         http_response connect(socket_pair sock);
 };
