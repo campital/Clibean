@@ -249,6 +249,7 @@ http_response writeDataSSL(SSL* ssl, std::string data)
         if(readSize > 0) {
             buf[readSize] = 0;
             std::string currBuf(buf.get());
+            std::cout << currBuf;
             if(parser.append(currBuf)) {
                 http_response res = parser.getResponse();
                 res.success = true;
