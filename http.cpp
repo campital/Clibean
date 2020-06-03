@@ -43,10 +43,10 @@ HTTPRequest::HTTPRequest(const HTTPRequest& other)
     m_Location = other.m_Location;
     m_isGet= other.m_isGet;
     requestBody = other.requestBody;
-    headerParams = other.headerParams;
+    extraHeaderParams = other.extraHeaderParams;
 }
 
-// note that headerParams WILL BE modified, but can be requested again
+// note that extraHeaderParams WILL BE modified, but can be requested again
 // on networking failure, returns a failed http_response (should reconnect)
 http_response HTTPRequest::connect(socket_pair sock)
 {
@@ -64,17 +64,17 @@ http_response HTTPRequest::connect(socket_pair sock)
         getParams.resize(getParams.size() - 1);
     }
     headers.append(m_isGet ? "GET" : "POST").append(" " + m_Location + getParams).append(" HTTP/1.1\r\n");
-    headerParams.insert(std::map<std::string, std::string>::value_type("Host", m_Host));
+    extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Host", m_Host));
     // just copied User-Agent from my browser (could be anything but don't want to trigger suspicion)
-    headerParams.insert(std::map<std::string, std::string>::value_type("User-Agent",
+    extraHeaderParams.insert(std::map<std::string, std::string>::value_type("User-Agent",
         "Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0"));
     // TODO: add language support??
-    headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Language", "en-US,en;q=0.5"));
-    headerParams.insert(std::map<std::string, std::string>::value_type("Accept-Encoding", "identity"));
+    extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept-Language", "en-US,en;q=0.5"));
+    extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept-Encoding", "identity"));
     // server just times out anyways
-    headerParams.insert(std::map<std::string, std::string>::value_type("Connection", "keep-alive"));
-    auto headerIt = headerParams.begin();
-    while(headerIt != headerParams.end()) {
+    extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Connection", "keep-alive"));
+    auto headerIt = extraHeaderParams.begin();
+    while(headerIt != extraHeaderParams.end()) {
         headers.append(headerIt->first + ": " + headerIt->second + "\r\n");
         headerIt++;
     }

@@ -47,7 +47,7 @@ socket_pair sslConnect(std::string hostName)
     int base;
     socket_pair pair = {-1, nullptr};
     if((base = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == 0) {
-        std::cerr << "Could not create socket: " << hostName << '\n';
+        throw std::runtime_error("Could not create socket: " + hostName);
         return pair;
     }
     // get the information to connect
@@ -57,7 +57,7 @@ socket_pair sslConnect(std::string hostName)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     if(getaddrinfo(hostName.c_str(), "https", &hints, &result) != 0) {
-        std::cerr << "Could not get host info: " << hostName << '\n';
+        throw std::runtime_error("Could not get host info: " + hostName);
         return pair;
     }
 
@@ -70,7 +70,7 @@ socket_pair sslConnect(std::string hostName)
 
     // connect to the server
     if(connect(base, result->ai_addr, result->ai_addrlen) != 0) {
-        std::cerr << "Could not connect to server! Error: " << std::strerror(errno) << '\n';
+        throw std::runtime_error(std::string("Could not connect to server! Error: ") + std::strerror(errno));
         freeaddrinfo(result);
         return pair;
     }

@@ -1,7 +1,7 @@
 #include "basicUI.h"
 #include "unistd.h"
 
-std::pair<std::string, std::string> BasicUI::getLogin()
+std::pair<std::string, std::string> MBBasicUI::getLogin()
 {
     std::string username, password;
     std::cout << "Username: ";
@@ -13,17 +13,45 @@ std::pair<std::string, std::string> BasicUI::getLogin()
     return std::make_pair(username, password);
 }
 
-void BasicUI::init()
+void MBBasicUI::init()
 {
     std::cout << "Connected to Membean!\n\n";
 }
 
-void BasicUI::loginFail()
+void MBBasicUI::loginFail()
 {
     std::cout << "\nIncorrect login!\n\n";
 }
 
-void BasicUI::loginSuccess()
+void MBBasicUI::loginSuccess()
 {
     std::cout << "\nLogged in!\n\n";
+}
+
+int MBBasicUI::getSessionLength()
+{
+    std::string rawLen;
+    int ret = 0;
+    bool valid = false;
+    while(!valid) {
+        std::cout << "Enter your session length (15 default): ";
+        std::getline(std::cin, rawLen);
+        if(rawLen == "") {
+            // default
+            return 15;
+        }
+
+        try {
+            ret = std::stoi(rawLen);
+        } catch(std::invalid_argument& e) {
+            std::cout << "\nInvalid input! Enter a number of minutes between 5 and 60.\n\n";
+            continue;
+        }
+        if(ret >= 5 && ret <= 60) {
+            valid = true;
+        } else {
+            std::cout << "\nThat amount of time is out of range! Enter a number of minutes between 5 and 60.\n\n";
+        }
+    }
+    return ret;
 }

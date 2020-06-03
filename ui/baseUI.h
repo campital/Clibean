@@ -9,4 +9,5 @@ class MBUserInterface {
         virtual void init() = 0;
         virtual void loginSuccess() = 0;
         virtual void loginFail() = 0;
+        virtual int getSessionLength() = 0;
 };
