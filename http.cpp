@@ -110,6 +110,7 @@ http_response HTTPRequest::connect(socket_pair sock)
                     closeSocket(sock);
                     sock = sslConnect(m_Host);
                     newSock = sock;
+                    std::cerr << "Reconnecting to Membean.\n" << finalRes.sslError << std::endl;
                 }
                 retry = true;
             }

@@ -1,5 +1,6 @@
 /*
 TODO: proper logging
+TODO: fix reestablish connection issue (pass socket by reference) and close GitHub issue (maybe the problem only exists on android?)
 TODO: delegate stuff to other places
 */
 #include "http.h"
@@ -114,8 +115,8 @@ int main(int argc, char **argv)
         mbConnection = sessionResponse.newSock;
     }
 
-    //int session = std::stoi(extractString(sessionResponse.headerParams["location"], "/training_sessions"));
-    std::cout << extractString(sessionResponse.headerParams["location"], "/training_sessions") << std::endl;
+    std::string session = extractString(sessionResponse.headerParams["location"], "/training_sessions");
+    std::cout << session << std::endl;
 
     closeSocket(mbConnection);
     return 0;
