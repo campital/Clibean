@@ -44,7 +44,10 @@ int MBBasicUI::getSessionLength()
         try {
             ret = std::stoi(rawLen);
         } catch(std::invalid_argument& e) {
-            std::cout << "\nInvalid input! Enter a number of minutes between 5 and 60.\n\n";
+            std::cout << sessionLengthError;
+            continue;
+        } catch(std::out_of_range& e) {
+            std::cout << sessionLengthError;
             continue;
         }
         if(ret >= 5 && ret <= 60) {

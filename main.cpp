@@ -1,13 +1,7 @@
 /*
 TODO: proper logging
-TODO: fix reestablish connection issue (pass socket by reference) and close GitHub issue (maybe the problem only exists on android?)
-TODO: delegate stuff to other places
 */
-#include "http.h"
-#include "ui/basicUI.h"
-#include <getopt.h>
-
-std::string extractString(const std::string& searchString, std::string preceding, size_t startLoc = 0);
+#include "main.h"
 
 int main(int argc, char **argv)
 {
@@ -51,71 +45,26 @@ int main(int argc, char **argv)
             break;
     }
 
-    socket_pair mbConnection = sslConnect("membean.com");
-
-    HTTPRequest csrfRequest("membean.com", "/login", true);
-    // get the XSRF token and _new_membean_session_id (needed for logging in)
-    csrfRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("X-Only-Token", "1"));
-    http_response csrfTokenResponse = csrfRequest.connect(mbConnection);
-    if(!csrfTokenResponse.success) {
-        std::cerr << "Invalid CSRF token response!\n";
+    socket_pair mbConnection = sslConnect(mbPrefix);
+    http_response csrfToken = mbGetCSRF(mbConnection);
+    if(csrfToken.success == false) {
         return 0;
-    }
-    if(csrfTokenResponse.newSock.sockSSL != nullptr) {
-        mbConnection = csrfTokenResponse.newSock;
     }
 
     // get the login
     mainUI.init();
-    HTTPRequest loginRequest("membean.com", "/login", false);
-    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept",
-        "*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript"));
-    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Cookie", "_new_membean_session_id=" +
-        csrfTokenResponse.setCookies["_new_membean_session_id"] + ";"));
-    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("X-CSRF-Token", csrfTokenResponse.body));
-
-    std::string authToken;
-    std::string sessionID;
-    while(1) {
-        auto login = mainUI.getLogin();
-        loginRequest.requestBody["user[username]"] = login.first;
-        loginRequest.requestBody["user[password]"] = login.second;
-        http_response loginResponse = loginRequest.connect(mbConnection);
-        if(!loginResponse.success) {
-            std::cerr << "Invalid login response!\n";
-            return 0;
-        }
-        if(loginResponse.newSock.sockSSL != nullptr) {
-            mbConnection = loginResponse.newSock;
-        }
-
-        if(loginResponse.setCookies.find("auth_token") != loginResponse.setCookies.end()) {
-            mainUI.loginSuccess();
-            authToken = loginResponse.setCookies["auth_token"];
-            sessionID = loginResponse.setCookies["_new_membean_session_id"];
-            break;
-        } else {
-            mainUI.loginFail();
-        }
+    login_data loginData = mbGetLoginData(csrfToken, mbConnection, mainUI);
+    if(loginData.authToken == "" || loginData.tmpSessionID == "") {
+        return 0;
     }
 
     // start a session
-    int sessionTime = mainUI.getSessionLength();
-    HTTPRequest beginSessionRequest("membean.com", "/training_sessions?t=" + std::to_string(sessionTime), false);
-    beginSessionRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept",
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"));
-    beginSessionRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Cookie", "_new_membean_session_id=" +
-        sessionID + "; " + "auth_token=" + authToken));
-    http_response sessionResponse = beginSessionRequest.connect(mbConnection);
-    if(sessionResponse.successCode != 302 || !sessionResponse.success) {
-        std::cerr << "Invalid session creation response!\n";
+    http_response trainingSessionResponse = mbCreateTrainingSession(loginData, mbConnection, mainUI);
+    if(trainingSessionResponse.success == false) {
         return 0;
     }
-    if(sessionResponse.newSock.sockSSL != nullptr) {
-        mbConnection = sessionResponse.newSock;
-    }
 
-    std::string session = extractString(sessionResponse.headerParams["location"], "/training_sessions");
+    std::string session = extractString(trainingSessionResponse.headerParams["location"], "/training_sessions");
     std::cout << session << std::endl;
 
     closeSocket(mbConnection);
@@ -144,4 +93,75 @@ std::string extractString(const std::string& searchString, std::string preceding
         }
     }
     return "";
+}
+
+http_response mbGetCSRF(socket_pair& mbConnection)
+{
+    HTTPRequest csrfRequest(mbPrefix, "/login", true);
+    // get the XSRF token and _new_membean_session_id (needed for logging in)
+    csrfRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("X-Only-Token", "1"));
+    http_response csrfTokenResponse = csrfRequest.connect(mbConnection);
+    if(!csrfTokenResponse.success) {
+        std::cerr << "Invalid CSRF token response!\n";
+        return csrfTokenResponse;
+    }
+    if(csrfTokenResponse.newSock.sockSSL != nullptr) {
+        mbConnection = csrfTokenResponse.newSock;
+    }
+    return csrfTokenResponse;
+}
+
+login_data mbGetLoginData(http_response csrfTokenResponse, socket_pair& mbConnection, MBUserInterface& mainUI)
+{
+    HTTPRequest loginRequest(mbPrefix, "/login", false);
+    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept",
+        "*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript"));
+    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Cookie", "_new_membean_session_id=" +
+        csrfTokenResponse.setCookies["_new_membean_session_id"] + ";"));
+    loginRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("X-CSRF-Token", csrfTokenResponse.body));
+
+    login_data result;
+    while(1) {
+        auto login = mainUI.getLogin();
+        loginRequest.requestBody["user[username]"] = login.first;
+        loginRequest.requestBody["user[password]"] = login.second;
+        http_response loginResponse = loginRequest.connect(mbConnection);
+        if(!loginResponse.success) {
+            std::cerr << "Invalid login response!\n";
+            return result;
+        }
+        if(loginResponse.newSock.sockSSL != nullptr) {
+            mbConnection = loginResponse.newSock;
+        }
+
+        if(loginResponse.setCookies.find("auth_token") != loginResponse.setCookies.end()) {
+            mainUI.loginSuccess();
+            result.authToken = loginResponse.setCookies["auth_token"];
+            result.tmpSessionID = loginResponse.setCookies["_new_membean_session_id"];
+            break;
+        } else {
+            mainUI.loginFail();
+        }
+    }
+    return result;
+}
+
+http_response mbCreateTrainingSession(login_data newLogin, socket_pair& mbConnection, MBUserInterface& mainUI)
+{
+    int sessionTime = mainUI.getSessionLength();
+    HTTPRequest beginSessionRequest(mbPrefix, "/training_sessions?t=" + std::to_string(sessionTime), false);
+    beginSessionRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Accept",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"));
+    beginSessionRequest.extraHeaderParams.insert(std::map<std::string, std::string>::value_type("Cookie", "_new_membean_session_id=" +
+        newLogin.tmpSessionID + "; " + "auth_token=" + newLogin.authToken));
+    http_response sessionResponse = beginSessionRequest.connect(mbConnection);
+    if(sessionResponse.successCode != 302 || !sessionResponse.success) {
+        std::cerr << "Invalid session creation response!\n";
+        sessionResponse.success = false;
+        return sessionResponse;
+    }
+    if(sessionResponse.newSock.sockSSL != nullptr) {
+        mbConnection = sessionResponse.newSock;
+    }
+    return sessionResponse;
 }
