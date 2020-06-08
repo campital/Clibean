@@ -63,36 +63,27 @@ int main(int argc, char **argv)
     if(trainingSessionResponse.success == false) {
         return 0;
     }
-
     std::string session = extractString(trainingSessionResponse.headerParams["location"], "/training_sessions");
-    std::cout << session << std::endl;
-
-    closeSocket(mbConnection);
-    return 0;
-}
-
-// returns empty string on failure
-std::string extractString(const std::string& searchString, std::string preceding, size_t startLoc)
-{
-    size_t strLoc = searchString.find(preceding, startLoc);
-    if(strLoc == std::string::npos) {
-        return "";
+    if(session == "") {
+        std::cerr << "Error obtaining a session id!\n";
+        return 0;
     }
-    strLoc += preceding.size();
-    if(strLoc >= searchString.size()) {
-        return "";
-    }
-
-    char endQuote = searchString[strLoc];
-
-    strLoc++;
-    size_t strEnd = strLoc;
-    while((strEnd = searchString.find(endQuote, strEnd)) != std::string::npos) {
-        if(searchString[strEnd - 1] != '\\') {
-            return searchString.substr(strLoc, strEnd - strLoc);
+    for(char c : session) {
+        if(!(c >= '0' && c <= '9')) {
+            std::cerr << "Invalid session id!\n";
+            return 0;
         }
     }
-    return "";
+    
+    // now start the session
+    MBTrainingSession trainer(mainUI, loginData, session, mbPrefix);
+    if(!trainer.advanceQuestion(mbConnection)) {
+        std::cerr << "Invalid user state response!\n";
+        return 0;
+    }
+
+    closeSocket(mbConnection, false);
+    return 0;
 }
 
 http_response mbGetCSRF(socket_pair& mbConnection)

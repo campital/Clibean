@@ -2,8 +2,6 @@
 #include <iostream>
 #include "netUtil.h"
 
-std::string urlEncodeParam(std::string str);
-
 class HTTPRequest {
     private:
         std::string m_Host;
@@ -19,3 +17,5 @@ class HTTPRequest {
         HTTPRequest(const HTTPRequest& other);
         http_response connect(socket_pair sock);
 };
+
+std::string urlEncodeParam(std::string str);

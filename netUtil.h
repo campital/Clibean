@@ -40,7 +40,7 @@ class HTTPStreamReader {
         http_response getResponse();
 };
 
-void closeSocket(socket_pair pair);
+void closeSocket(socket_pair pair, bool fatalError);
 SSL* secureSocket(int normalSock, SSL_CTX** ctx);
 socket_pair sslConnect(std::string hostName);
 http_response writeDataSSL(SSL* ssl, std::string data);

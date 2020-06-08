@@ -107,7 +107,7 @@ http_response HTTPRequest::connect(socket_pair sock)
                     || finalRes.sslError == SSL_ERROR_SYSCALL || finalRes.sslError == SSL_ERROR_ZERO_RETURN) {
                         
                     // reconnect
-                    closeSocket(sock);
+                    closeSocket(sock, (finalRes.sslError == SSL_ERROR_SSL || finalRes.sslError == SSL_ERROR_SYSCALL) ? true : false);
                     sock = sslConnect(m_Host);
                     newSock = sock;
                 }

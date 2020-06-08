@@ -8,10 +8,26 @@
 const int bufSize = 2048;
 const std::string validHex = "0123456789abcdefABCDEF";
 
-void closeSocket(socket_pair pair)
+void closeSocket(socket_pair pair, bool fatalError)
 {
     if(pair.sockSSL != nullptr) {
-        SSL_shutdown(pair.sockSSL);
+        if(!fatalError) {
+            auto tmpBuf = std::unique_ptr<char[]>(new char[bufSize]);
+            int retStatus = 1;
+            bool read = false;
+            while(SSL_has_pending(pair.sockSSL)) {
+                retStatus = SSL_read(pair.sockSSL, tmpBuf.get(), bufSize);
+                read = true;
+                if(retStatus < 1)
+                    break;
+            }
+
+            int sslError = SSL_ERROR_NONE;
+            if(read)
+                sslError = SSL_get_error(pair.sockSSL, retStatus);
+            if(sslError != SSL_ERROR_SSL && sslError != SSL_ERROR_SYSCALL)
+                SSL_shutdown(pair.sockSSL);
+        }
         SSL_free(pair.sockSSL);
         SSL_CTX_free(pair.ctx);
     }
@@ -255,8 +271,14 @@ http_response writeDataSSL(SSL* ssl, std::string data)
                 res.success = true;
                 return res;
             }
+        } else if((readSize = SSL_get_error(ssl, readSize)) != SSL_ERROR_WANT_READ) {
+            http_response sslErr;
+            sslErr.success = false;
+            sslErr.sslError = readSize;
+            return sslErr;
         }
     } while(readSize > 0);
     http_response res = parser.getResponse();
+    res.success = false;
     return res;
 }
