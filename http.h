@@ -7,7 +7,6 @@ class HTTPRequest {
         std::string m_Host;
         std::string m_Location;
         bool m_isGet;
-        bool m_ssl;
     public:
         std::map<std::string, std::string> requestBody;
         // the extraHeaderParams should only contain general headers, such as "cookie"

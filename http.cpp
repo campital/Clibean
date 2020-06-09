@@ -37,14 +37,9 @@ std::string urlEncodeParam(std::string str)
 HTTPRequest::HTTPRequest(std::string host, std::string location, bool isGet) :
     m_Host(host), m_Location(location), m_isGet(isGet) {}
 
-HTTPRequest::HTTPRequest(const HTTPRequest& other)
-{
-    m_Host = other.m_Host;
-    m_Location = other.m_Location;
-    m_isGet= other.m_isGet;
-    requestBody = other.requestBody;
-    extraHeaderParams = other.extraHeaderParams;
-}
+HTTPRequest::HTTPRequest(const HTTPRequest& other) : m_Host(other.m_Host), m_Location(other.m_Location), m_isGet(other.m_isGet),
+    requestBody(other.requestBody), extraHeaderParams(other.extraHeaderParams)
+{}
 
 // note that extraHeaderParams WILL BE modified, but can be requested again
 // on networking failure, returns a failed http_response (should reconnect)

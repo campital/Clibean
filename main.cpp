@@ -1,5 +1,6 @@
 /*
 TODO: proper logging
+TODO: fix sslConnect runtime errors
 */
 #include "main.h"
 
