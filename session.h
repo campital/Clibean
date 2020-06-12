@@ -25,6 +25,8 @@ class MBTrainingSession {
         HTTPRequest m_userStateRequest;
         std::string m_trainingSessionBase;
         question_info getQuestionInfo(const std::string& html, size_t qidPos);
+        std::string decodeAnswer(std::string encoded);
+        std::string base64Decode(std::string encoded);
     public:
         MBTrainingSession(MBUserInterface& mainUI, login_data loginInfo, std::string sessionID, std::string host);
         bool advanceQuestion(socket_pair& mbConnection);
