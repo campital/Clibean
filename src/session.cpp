@@ -1,4 +1,5 @@
 #include "session.h"
+#include <vector>
 
 MBTrainingSession::MBTrainingSession(MBUserInterface& mainUI, login_data loginInfo, std::string sessionID, std::string host) : m_mainUI(mainUI),
     m_loginInfo(loginInfo), m_sessionID(sessionID), m_userStateRequest(host, "/training_sessions/" + sessionID + "/user_state?xhr=_xhr", true)

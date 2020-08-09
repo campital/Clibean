@@ -2,6 +2,7 @@
 TODO: proper logging
 */
 #include "main.h"
+#include <getopt.h>
 
 int main(int argc, char **argv)
 {

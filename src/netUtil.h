@@ -1,9 +1,6 @@
 #pragma once
 #include <iostream>
-#include <sys/socket.h>
 #include <openssl/ssl.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <map>
 
 struct socket_pair {

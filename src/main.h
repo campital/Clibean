@@ -2,7 +2,6 @@
 #include <iostream>
 #include "ui/basicUI.h"
 #include "session.h"
-#include <getopt.h>
 
 const std::string mbPrefix = "membean.com";
 

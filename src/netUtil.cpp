@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <memory>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 const int bufSize = 2048;
 const std::string validHex = "0123456789abcdefABCDEF";
@@ -61,7 +64,7 @@ SSL* secureSocket(int normalSock, SSL_CTX** ctx)
 socket_pair sslConnect(std::string hostName)
 {
     int base;
-    socket_pair pair = {-1, nullptr};
+    socket_pair pair = {-1, nullptr, nullptr};
     if((base = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == 0) {
         throw std::runtime_error("Could not create socket: " + hostName);
         return pair;
