@@ -8,7 +8,7 @@ set(SRC main.cpp
         http.cpp
         netUtil.cpp
         session.cpp
-        ui/BasicUI.cpp)
+        ui/basicUI.cpp)
 
 add_executable(clibean ${SRC})
 
